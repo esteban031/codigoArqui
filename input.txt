@@ -1,0 +1,6 @@
+add $t0, $t1, $t2
+lw $t3, 4($t4)
+beq $t0, $t1, etiqueta
+j etiqueta
+etiqueta:
+addi $t0, $t1, 5
