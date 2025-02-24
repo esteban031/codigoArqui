@@ -108,6 +108,7 @@ int calcularDesplazamiento(unsigned int direccionEtiqueta, unsigned int pc){
     int offset = (direccionEtiqueta - (pc + 4)) / 4;
     return offset;
 }
+
 //para eliminar todos los comentarios o lineas vacias
 string limpiarLinea(string linea) {
     int posComentario = linea.find('#');
@@ -148,6 +149,9 @@ bool validarTipoR(string &instruccion, vector<string> &ins){
         nombre == "and" || nombre == "or" || nombre == "nor" || nombre == "slt" || nombre == "sltu"){
         // Formato: rd, rs, rt
         ss >> rd >> coma1 >> rs >> coma2 >> rt;
+        cout << "debug  ";
+        cout  << rd << rs << rt << endl ;
+
         if (coma1 != ',' || coma2 != ',' || rd[0] != '$' || rs[0] != '$' || rt[0] != '$'){
             cerr << "Error: La instruccion tipo R: " << instruccion << " esta mal estructurada" <<endl;
             ans = false;
@@ -312,7 +316,6 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, unsigned
     }
     return ans;
 }
-
 
 bool validarTipoJ(string &instruccion, vector<string> &ins, map<string, unsigned int> &etiquetas){
     bool ans;
