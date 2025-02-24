@@ -131,10 +131,21 @@ string limpiarLinea(string linea) {
 
     return linea;
 }
+// FUE SOLO UNA IDEA AUN NO SE SI SIRVE
+string complementoADos(int valor, int bits = 16) { //ajustar bits 
+    string resultado;
 
-string complementoADos(int valor) {
-    //nose como xd y no entendi en internet
-}
+    if (valor < 0) {
+        valor = (1 << bits) + valor;  // Convierte el número negativo a complemento a dos
+    }
+
+    for (int i = bits - 1; i >= 0; i--) {
+        resultado += to_string((valor >> i) & 1); // to_string pasa directamente los bits a caracteres
+    }
+
+    return resultado;
+} 
+
 
 bool validarTipoR(string &instruccion, vector<string> &ins){
     bool ans = true;
@@ -145,12 +156,23 @@ bool validarTipoR(string &instruccion, vector<string> &ins){
     ss >> nombre;
 
     if(nombre == "add" || nombre == "addu" || nombre == "sub" || nombre == "subu" ||
-        nombre == "and" || nombre == "or" || nombre == "nor" || nombre == "slt" || nombre == "sltu"){
+        nombre == "and" || nombre == "or" || nombre == "nor" || nombre == "slt" || nombre == "sltu"){ //SE COMENTO LO SE SS DE BAAJO
         // Formato: rd, rs, rt
-        ss >> rd >> coma1 >> rs >> coma2 >> rt;
+        //ss >> rd >> coma1 >> rs >> coma2 >> rt;
+
+        // Extraer los registros como strings completos
+        getline(ss, rd, ',');  // ESTA PARTE FUE AÑADIDA HACIENDO DEBUG
+        getline(ss, rs, ',');  
+        getline(ss, rt, ',');  
+
+        // DEBUG
+        cout << "DEBUG : ";
+        cout << rd << rs << rt << endl; 
+        
         if (coma1 != ',' || coma2 != ',' || rd[0] != '$' || rs[0] != '$' || rt[0] != '$'){
             cerr << "Error: La instruccion tipo R: " << instruccion << " esta mal estructurada" <<endl;
             ans = false;
+    
         }else{
             ins.push_back(nombre);
             ins.push_back(rs);
