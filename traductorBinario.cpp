@@ -16,6 +16,7 @@ Integrantes: Valentina Feijoo y Esteban Arismendi
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -103,7 +104,6 @@ vector<string> traducir(vector<string> ins){
     return resultado;
 }
 
-
 int calcularDesplazamiento(unsigned int direccionEtiqueta, unsigned int pc){
     int offset = (direccionEtiqueta - (pc + 4)) / 4;
     return offset;
@@ -133,9 +133,25 @@ string limpiarLinea(string linea) {
     return linea;
 }
 
-string complementoADos(int valor) {
-    //nose como xd y no entendi en internet
+// FUE SOLO UNA IDEA AUN NO SE SI SIRVE
+string complementoADos(int valor, int bits = 16) { //ajustar bits 
+    string resultado;
+
+    if (valor < 0) {
+        valor = (1 << bits) + valor;  // Convierte el número negativo a complemento a dos
+    }
+
+    for (int i = bits - 1; i >= 0; i--) {
+        resultado += to_string((valor >> i) & 1); // to_string pasa directamente los bits a caracteres
+    }
+
+    return resultado;
+} 
+
+bool esRegistroValido(string &registro) {
+    return find(registros.begin(), registros.end(), registro) != registros.end();
 }
+
 
 bool validarTipoR(string &instruccion, vector<string> &ins){
     bool ans = true;
@@ -146,27 +162,42 @@ bool validarTipoR(string &instruccion, vector<string> &ins){
     ss >> nombre;
 
     if(nombre == "add" || nombre == "addu" || nombre == "sub" || nombre == "subu" ||
-        nombre == "and" || nombre == "or" || nombre == "nor" || nombre == "slt" || nombre == "sltu"){
+        nombre == "and" || nombre == "or" || nombre == "nor" || nombre == "slt" || nombre == "sltu"){ //SE COMENTO LO SE SS DE BAAJO
         // Formato: rd, rs, rt
-        ss >> rd >> coma1 >> rs >> coma2 >> rt;
-        cout << "debug  ";
-        cout  << rd << rs << rt << endl ;
+        //ss >> rd >> coma1 >> rs >> coma2 >> rt;
 
-        if (coma1 != ',' || coma2 != ',' || rd[0] != '$' || rs[0] != '$' || rt[0] != '$'){
-            cerr << "Error: La instruccion tipo R: " << instruccion << " esta mal estructurada" <<endl;
-            ans = false;
-        }else{
+        // Extraer los registros como strings completos
+        getline(ss, rd, ',');  // ESTA PARTE FUE AÑADIDA HACIENDO DEBUG
+        getline(ss, rs, ',');  
+        getline(ss, rt, ',');  
+
+        // DEBUG
+        rd = limpiarLinea(rd);
+        rs = limpiarLinea(rs);
+        rt = limpiarLinea(rt);
+
+        cout << "DEBUG : ";
+        cout << rd << rs << rt << endl; 
+
+        ans = esRegistroValido(rd) && esRegistroValido(rs) && esRegistroValido(rt);
+        
+        if (ans){
             ins.push_back(nombre);
             ins.push_back(rs);
             ins.push_back(rt);
             ins.push_back(rd);
             ins.push_back("00000");
 
+        }else{
+            cerr << "Error: La instruccion tipo R: " << instruccion << " esta mal estructurada" <<endl;
         }
 
     }else if (nombre == "mult" || nombre == "multu" || nombre == "div" || nombre == "divu"){
         // Formato: rs, rt
-        ss >> rs >> coma1 >> rt;
+        //ss >> rs >> coma1 >> rt;
+
+        getline(ss, rd, ',');  // ESTA PARTE FUE AÑADIDA HACIENDO DEBUG
+        getline(ss, rs, ','); 
         if (coma1 != ',' || rs[0] != '$' || rt[0] != '$') {
             cerr << "Error: La instruccion tipo R: " << instruccion << " esta mal estructurada" <<endl;
             ans = false;
