@@ -20,6 +20,40 @@ Integrantes: Valentina Feijoo y Esteban Arismendi
 
 using namespace std;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* list<string> tipoR = {"add", "and", "addu", "subu", "mfc0", "mult",
 "multu" , "div", "divu", "jr" , "nor", "or", "slt", "sltu", "sll", "srl", "sub", "mfhi", "mflo", "sra"};
 
