@@ -48,6 +48,15 @@ int calcularDesplazamiento(int direccionEtiqueta, int pc){
     return offset;
 }
 
+int calcularDesplazamientoTipoJ(int direccionEtiqueta, int pc){
+    int ans = direccionEtiqueta / 4;
+    return ans;
+}
+
+bool esHexadecimal(const string &valor) {
+    return (valor.rfind("0x", 0) == 0 || valor.rfind("0X", 0) == 0);
+}
+
 bool esRegistroProtegido(const string &registro) {
     // Verifica si el registro esta en la lista de registros protegidos
     return find(registrosProtegidos.begin(), registrosProtegidos.end(), registro) != registrosProtegidos.end();
@@ -76,7 +85,8 @@ string limpiarLinea(string linea) {
 
     return linea;
 }
-// FUE SOLO UNA IDEA AUN NO SE SI SIRVE
+
+
 string convertirABinario(int valor, int bits) {
     if (valor < 0) {
         // Si el valor es negativo, lo convertimos a complemento a dos
@@ -93,22 +103,29 @@ string convertirABinario(int valor, int bits) {
         }
     }
 
+    // Asegurarse de que el resultado tenga exactamente 'bits' bits
+    while (binario.length() < bits) {
+        binario = '0' + binario;
+    }
+
     return binario;
 }
 
 string hexABinario(const string& hexStr) {
-    // Eliminar el prefijo "0x" si está presente
     string cleanHex = (hexStr.rfind("0x", 0) == 0) ? hexStr.substr(2) : hexStr;
-    
-    // Convertir la cadena hexadecimal a un número entero
     unsigned long num;
     stringstream ss;
     ss << hex << cleanHex;
     ss >> num;
-    
-    // Convertir el número entero a una cadena binaria
-    bitset<16> bin(num); // Usa 32 bits, ajústalo si necesitas más
+    bitset<16> bin(num);
     return bin.to_string();
+}
+
+bool esBinario(const string &numero) {
+    // Verificar que todos los caracteres sean '0' o '1'
+    return all_of(numero.begin(), numero.end(), [](char c) {
+        return c == '0' || c == '1';
+    });
 }
 
 vector<string> traducir(vector<string> ins) {
@@ -170,10 +187,26 @@ vector<string> traducir(vector<string> ins) {
                 string rs = registros[ins[i + 1]];
                 string rt = registros[ins[i + 2]];
                 string inmediato = ins[i + 3];
+                string inmediatoBinario;
+                if(nombre == "lui"){
+                    rs = "00000";
+                }
 
-                // Convertir el inmediato a binario de 16 bits
-                int inmediatoEntero = stoi(inmediato); // Convertir a entero
-                string inmediatoBinario = convertirABinario(inmediatoEntero, 16);
+                /* cout << "FUCK"<< endl;
+                cout << "rs: "<< rs << "rt :" << rt << endl;
+
+                cout << "------"<< endl; */
+
+                if (inmediato == "0") {
+                    // Si el inmediato es 0, llenar con 16 bits de 0
+                    inmediatoBinario = "0000000000000000";
+                } else if (!esBinario(inmediato)) {
+                    // Convertir el inmediato a binario de 16 bits
+                    int inmediatoEntero = stoi(inmediato); // Convertir a entero
+                    inmediatoBinario = convertirABinario(inmediatoEntero, 16);
+                } else {
+                    inmediatoBinario = inmediato; // Ya está en binario
+                }
 
                 // Construir la instrucción en binario
                 string binario = opcode + rs + rt + inmediatoBinario;
@@ -306,7 +339,7 @@ bool validarTipoR(string &instruccion, vector<string> &ins) {
     return ans;
 }
 
-bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &etiquetas, int pc) {
+bool validarTipoI(string &instruccion, vector<string> &ins, map<string, unsigned int> &etiquetas, int pc) {
     bool ans = false;
     istringstream ss(instruccion);
     string nombre;
@@ -333,10 +366,16 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &et
         ans = esRegistroValido(rs) && esRegistroValido(rt) && (etiquetas.find(etiqueta) != etiquetas.end());
 
         if (ans) {
-            int offset = calcularDesplazamiento(etiquetas[etiqueta], pc);
-            /* cout << "OFFSET" << endl;
-            cout << offset << endl; */
-            string offsetBinario = convertirABinario(offset, 16); // Cambio aquí
+            string offsetBinario;
+
+            if(esHexadecimal(etiqueta)){
+                offsetBinario = hexABinario(etiqueta);
+            }else{
+                int offset = calcularDesplazamiento(etiquetas[etiqueta], pc);
+                /* cout << "OFFSET" << endl;
+                cout << offset << endl; */
+                offsetBinario = convertirABinario(offset, 16); // Cambio aquí
+            }
 
             ins.push_back(nombre);
             ins.push_back(rs);
@@ -346,7 +385,7 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &et
         } else {
             cerr << "Error: Registros o etiqueta no validos en la instruccion: " << instruccion << endl;
         }
-    } else if (nombre == "addi" || nombre == "addiu" || nombre == "andi" || nombre == "ori" || nombre == "slti" || nombre == "sltiu") {
+    } else if (nombre == "addi" || nombre == "addiu" || nombre == "andi" || nombre == "slti" || nombre == "sltiu") {
         // Formato: rt rs inmediato
         string rt, rs, inmediato;
         ss >> rt >> rs >> inmediato;
@@ -358,7 +397,7 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &et
             // Validar registros
             ans = esRegistroValido(rt) && esRegistroValido(rs);
         
-            if (ans) {
+            if (ans){
                 ins.push_back(nombre);
                 ins.push_back(rs);
                 ins.push_back(rt);
@@ -366,11 +405,45 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &et
                     inmediato = hexABinario(inmediato);   
                 } */
                 ins.push_back(inmediato);
-            } else {
+            }else{
                 cerr << "Error: Registros no validos en la instruccion: " << instruccion << endl;
             }
         }
-    } else if (nombre == "lw" || nombre == "sw" || nombre == "lb" || nombre == "lbu" || nombre == "sb" || nombre == "ll" || nombre == "sc") {
+    }else if (nombre == "ori") {
+        // Formato: rt rs inmediato (hexadecimal)
+        string rt, rs, inmediato;
+        ss >> rt >> rs >> inmediato;
+
+        if (esRegistroProtegido(rt)) {
+            cerr << "Error: No se puede modificar el registro protegido: " << rt << endl;
+            ans = false;
+        } else {
+            // Validar registros
+            ans = esRegistroValido(rt) && esRegistroValido(rs);
+
+            if (ans) {  
+                // Validar que el inmediato esté en formato hexadecimal (0x...);
+                string inmediatoBinario;
+                if(esHexadecimal(inmediato)){
+                    // Convertir el valor hexadecimal a entero
+                    inmediatoBinario = hexABinario(inmediato);
+                }else{
+                    inmediatoBinario = convertirABinario(stoi(inmediato), 16);
+
+                }
+            
+                    ins.push_back(nombre);
+                    ins.push_back(rs);
+                    ins.push_back(rt);
+                    ins.push_back(inmediatoBinario);
+                    
+                
+                
+            }else{
+                cerr << "Error: Registros no validos en la instruccion: " << instruccion << endl;
+            }
+        }
+    }else if (nombre == "lw" || nombre == "sw" || nombre == "lb" || nombre == "lbu" || nombre == "sb" || nombre == "ll" || nombre == "sc") {
         // Formato: rt offset(rs)
         string rt, rs;
         ss >> rt >> rs;
@@ -388,10 +461,12 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &et
             } else {
                 string offset = rs.substr(0, parenAbierto);
                 string reg = rs.substr(parenAbierto + 1, parenCerrado - parenAbierto - 1);
-    
+                if(esHexadecimal(offset)){
+                    offset = hexABinario(offset);
+                }                
                 // Validar registros
                 ans = esRegistroValido(rt) && esRegistroValido(reg);
-    
+                
                 if (ans) {
                     ins.push_back(nombre);
                     ins.push_back(reg);
@@ -415,25 +490,31 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, int> &et
             ans = esRegistroValido(rt);
     
             if (ans) {
+                string inmediatoBinario;
+                // Validar que el inmediato esté en formato hexadecimal (0x...)
+                if(esHexadecimal(inmediato)){
+                    inmediatoBinario = hexABinario(inmediato);
+                }
+
+                // Agregar a la lista de instrucciones
                 ins.push_back(nombre);
-                ins.push_back("00000");
+                ins.push_back("00000"); // rs no se usa en lui
                 ins.push_back(rt);
-                //inmediato = hexABinario(inmediato); 
-                ins.push_back(inmediato);
-    
+                ins.push_back(inmediatoBinario);
+                    
             } else {
-                cerr << "Error: Registro no valido en la instruccion: " << instruccion << endl;
+                cerr << "Error: El inmediato debe estar en formato hexadecimal (0x...): " << inmediato << endl;
+                ans = false;
             }
         }
-    } else {
+    }else{
         cerr << "Error: Instruccion no reconocida: " << instruccion << endl;
         ans = false;
     }
-
     return ans;
 }
 
-bool validarTipoJ(string &instruccion, vector<string> &ins, map<string, int> &etiquetas) {
+bool validarTipoJ(string &instruccion, vector<string> &ins, map<string, unsigned int> &etiquetas) {
     bool ans = false;
     istringstream ss(instruccion);
     string nombre, etiqueta;
@@ -449,17 +530,22 @@ bool validarTipoJ(string &instruccion, vector<string> &ins, map<string, int> &et
             ans = false;
         }else{
             ans = true;
-            if (ans) {
-                ins.push_back(nombre);
-
+            ins.push_back(nombre);
+            if(esHexadecimal(etiqueta)){
+                string inmediatoBinario = hexABinario(etiqueta);
+                ins.push_back(inmediatoBinario);
+            }else{
                 ins.push_back(to_string(etiquetas[etiqueta]));
             }
+            
+
+            
         }
     }
     return ans;
 }
 
-void leerEtiquetas(string nombre, map<string,  int> &etiquetas, int &pc){
+void leerEtiquetas(string nombre, map<string,unsigned int> &etiquetas, unsigned int &pc){
     ifstream archivo(nombre);
     string linea;
     int contadorLinea = 1;
@@ -474,8 +560,9 @@ void leerEtiquetas(string nombre, map<string,  int> &etiquetas, int &pc){
                     string etiqueta = lineaLeida.substr(0, lineaLeida.length() - 1);
                     
                     etiquetas[etiqueta] = pc + contadorLinea * var;
+                }else{
+                    contadorLinea++;
                 }
-                contadorLinea++;
             }
         }
     }
@@ -483,7 +570,7 @@ void leerEtiquetas(string nombre, map<string,  int> &etiquetas, int &pc){
     archivo.close();
 }
 
-void leerTxt(string nombre, vector<string> &ins, int &pc, map<string,    int> &etiquetas){
+void leerTxt(string nombre, vector<string> &ins, unsigned int &pc, map<string, unsigned int> &etiquetas){
     ifstream archivo(nombre);
     int countLinea = 0;
 
@@ -496,7 +583,7 @@ void leerTxt(string nombre, vector<string> &ins, int &pc, map<string,    int> &e
         while(getline(archivo, linea)){
             
             string lineaLeida = limpiarLinea(linea);
-            //cout << lineaLeida<< endl;
+            cout << lineaLeida<< endl;
             if (!lineaLeida.empty()) {
                 if (lineaLeida.back() != ':'){ // Ignorar líneas de etiquetas
                     if (validarTipoR(lineaLeida, ins)){
@@ -504,25 +591,23 @@ void leerTxt(string nombre, vector<string> &ins, int &pc, map<string,    int> &e
                         for(int i = 0; i < ins.size(); i++){
                             cout << ins[i] << " " ;
                         } */
-                        pc += 4;
+                        pc += var;
                     } else if (validarTipoJ(lineaLeida, ins, etiquetas)){
                         /* cout << "instruccion:::  " << endl;
                         for(int i = 0; i < ins.size(); i++){
                             cout << ins[i] << " " ;
                         } */
-                        pc += 4;
+                        pc += var;
                     } else if (validarTipoI(lineaLeida, ins, etiquetas, pc)){
                         /* cout << "instruccion:::  " << endl;
                         for(int i = 0; i < ins.size(); i++){
                             cout << ins[i] << " ";
                         } */
-                        pc += 4;
+                        pc += var;
                     } else {
                         cerr << "Error: Instruccion no reconocida: " << lineaLeida << endl;
                     }
                 }
-            }else{
-
             }
         }
     }
@@ -548,27 +633,82 @@ void generarTxt(vector<string> &traduccion, string &nombreArchivo){
     cout << "Traduccion guardada en: " << nombreArchivo << endl;
 }
 
+void formatoEntrada(unsigned int &pc) {
+    int option;
+    string input;
+
+    cout << "Seleccione el formato de entrada:\n";
+    cout << "1. Hexadecimal (0x...)\n";
+    cout << "2. Decimal\n";
+    cout << "Opcion: ";
+    cin >> option;
+
+    switch (option) {
+        case 1: {
+            cout << "Ingrese la direccion en formato hexadecimal (minimo valor 0x00040000): ";
+            cin >> input;
+
+            // Verificar si la entrada comienza con "0x" o "0X"
+            if (input.find("0x") == 0 || input.find("0X") == 0) {
+                // Convertir el valor hexadecimal a decimal
+                stringstream ss;
+                ss << hex << input; // Leer el valor hexadecimal
+                ss >> pc;           // Convertirlo a decimal
+            } else {
+                cerr << "Error: Formato incorrecto. Debe comenzar con 0x.\n";
+                return;
+            }
+
+            // Validar que el valor sea mayor o igual a 0x00040000 (262144 en decimal)
+            if (pc < 0x00040000) {
+                cerr << "Error: La direccion debe ser mayor o igual a 0x00040000.\n";
+                return;
+            }
+
+            break;
+        }
+        case 2: {
+            cout << "Ingrese la direccion en formato decimal (minimo valor 262144): ";
+            cin >> pc;
+
+            // Validar que el valor sea mayor o igual a 262144
+            if (pc < 262144) {
+                cerr << "Error: La direccion debe ser mayor o igual a 262144.\n";
+                return;
+            }
+
+            break;
+        }
+        default: {
+            cerr << "Opcion no valida. Intente nuevamente.\n";
+            return;
+        }
+    }
+
+    cout << "Direccion ingresada: " << pc << " (decimal)\n";
+}
+
+
 int main(){
     string nombre;
-    int pc;
+    unsigned int pc;
     cout << "Ingrese el nombre del archivo que desea traducir: ";
     cin >> nombre ;
-    cout << endl << "Ingrese la direccion de memoria donde comienza su programa (min 262144): ";
-    cin >> pc;
     
 
-    map<string, int> etiquetas;
+    formatoEntrada(pc);
+    map<string, unsigned int> etiquetas;
     vector<string> instrucciones;
     leerTxt(nombre, instrucciones,pc, etiquetas);
-
-    /* for(int i = 0; i < instrucciones.size(); i++){
+/* 
+    for(int i = 0; i < instrucciones.size(); i++){
         cout << instrucciones[i] << " - " ;
     }
 
     cout << endl; */
 
     vector<string> traduccion = traducir(instrucciones);
-    /* for(int i = 0; i < traduccion.size(); i++){
+   /*  for(int i = 0; i < traduccion.size(); i++){
         cout << traduccion[i] << " - " ;
     }
 
