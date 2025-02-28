@@ -1,13 +1,10 @@
-main:
-lui $gpp, 0x1001
-addi $zero, $t0, 10
+lui $s1, 0x1001
 addi $v0, $zero, 4
-addi $v0, $zero, 10
+addi $v0, $zero, 8
 lw $s2, 8($t7)
 sw $v1, 0x0020($s1)
 beq $a0, $a1, for
 ciclo:
-bne $v1, $s2, main
 mult $t1, $t2
 mflo $s5
 div $s2, $s4
