@@ -1,6 +1,6 @@
 lui $s1, 0x1001
 addi $v0, $zero, 4
-addi $v0, $zero, 8
+addi $v0, $zero, 34923484
 lw $s2, 8($t7)
 sw $v1, 0x0020($s1)
 beq $a0, $a1, for

@@ -59,7 +59,7 @@ int calcularDesplazamiento(int direccionEtiqueta, int pc){
 }
 
 int calcularDesplazamientoTipoJ(int direccionEtiqueta, int pc){
-    int ans = direccionEtiqueta / 4;
+    int ans = direccionEtiqueta / var;
     return ans;
 }
 
@@ -105,7 +105,7 @@ string convertirABinario(int valor, int bits){
 
     // Convertimos el valor a binario con el numero de bits especificado
     string binario;
-    for (int i = bits - 1; i >= 0; i--) {
+    for (int i = bits - 1; i >= 0; i--){
         if ((valor >> i) & 1) {
             binario += '1';
         } else {
@@ -113,7 +113,7 @@ string convertirABinario(int valor, int bits){
         }
     }
 
-    while (binario.length() < bits) {
+    while (binario.length() < bits){
         binario = '0' + binario;
     }
 
@@ -217,10 +217,10 @@ vector<string> traducir(vector<string> ins){
                 resultado.push_back(binario);
 
                 i += 4; // Avanzar al siguiente grupo de instrucciones
-            }
-        } else{
+            } 
+        }else {
             cerr << "Error: Instruccion no reconocida: " << nombre << endl;
-            i++; // Avanzar a la siguiente instrucción
+            exit(1); // Terminar el programa
         }
     }
     return resultado;
@@ -303,6 +303,10 @@ bool validarTipoR(string &instruccion, vector<string> &ins) {
             ans = false;
         }else{
             ans = esRegistroValido(rd) && esRegistroValido(rt);
+            if ( stoi(shamt) > 31) {
+                cerr << "Error: El valor inmediato debe estar poderse representar con (5 bits) max 31.\n";
+                ans = false;
+            } 
             if (ans) {
                 ins.push_back(nombre);
                 ins.push_back("00000");
@@ -400,14 +404,21 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, unsigned
             ans = esRegistroValido(rt) && esRegistroValido(rs);
         
             if (ans){
-                string inmediatoBinario;
-                ins.push_back(nombre);
-                ins.push_back(rs);
-                ins.push_back(rt);
-                
                 int inmediatoEntero = stoi(inmediato);
-                inmediatoBinario = convertirABinario(inmediatoEntero, 16);
-                ins.push_back(inmediato);
+                if (inmediatoEntero < -32768 || inmediatoEntero > 32767) {
+                    cerr << "Error: El valor inmediato debe estar entre -32768 y 32767 (16 bits).\n";
+                    ans = false;
+                }else{
+                    string inmediatoBinario;
+                    ins.push_back(nombre);
+                    ins.push_back(rs);
+                    ins.push_back(rt);
+                    
+                    int inmediatoEntero = stoi(inmediato);
+                    inmediatoBinario = convertirABinario(inmediatoEntero, 16);
+                    ins.push_back(inmediato);
+
+                }
             }else{
                 cerr << "Error: Registros no validos en la instruccion: " << instruccion << endl;
             }
