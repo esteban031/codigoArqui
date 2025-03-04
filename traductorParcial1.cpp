@@ -25,7 +25,7 @@ map<string, string> registros = {
     {"$s0", "10000"}, {"$s1", "10001"}, {"$s2", "10010"}, {"$s3", "10011"},
     {"$s4", "10100"}, {"$s5", "10101"}, {"$s6", "10110"}, {"$s7", "10111"},
     {"$t8", "11000"}, {"$t9", "11001"}, {"$k0", "11010"}, {"$k1", "11011"},
-    {"$gp", "11100"}, {"$sp", "11101"}, {"$fp", "11110"}, {"$ra", "11111"}
+    {"$gp", "11100"}, {"$sp", "11101"}, {"$fp", "11110"}, {"$ra", "11111"}, {"$0", "00000"}
 };
 
 map<string, pair<string, string>> instrucciones = {
@@ -56,6 +56,13 @@ int var = 4;
 int calcularDesplazamiento(int direccionEtiqueta, int pc){
     int offset = (direccionEtiqueta - (pc + var)) / var;
     return offset;
+}
+void imprimirMapaEtiquetas(const map<string, unsigned int> &etiquetas) {
+    cout << "Mapa de etiquetas:" << endl;
+    for (const auto &par : etiquetas) {
+        cout << "Etiqueta: " << par.first << " -> Dirección: " << par.second << " (0x" << hex << par.second << ")" << endl;
+    }
+    cout << dec; // Restaurar el formato decimal para evitar confusiones en el resto del código
 }
 
 int calcularDesplazamientoTipoJ(int direccionEtiqueta, int pc){
@@ -137,7 +144,7 @@ bool esBinario(const string &numero){
     });
 }
 
-vector<string> traducir(vector<string> ins){
+vector<string> traducir(vector<string> ins, map<string, unsigned int> &etiquetas, int pc){
     vector<string> resultado;
     int i = 0;
     while (i < ins.size()) {
@@ -182,13 +189,11 @@ vector<string> traducir(vector<string> ins){
 
                 i += 5; // Avanzar al siguiente grupo de instrucciones
             } else if (nombre == "j" || nombre == "jal"){ // Instrucción tipo J
-                string direccion = ins[i + 1];
+                string etiqueta = ins[i + 1];
+                
 
-                // Convertir la dirección a binario de 26 bits
-                int direccionEntero = stoi(direccion); // Convertir a entero
-                string direccionBinario = convertirABinario(direccionEntero, 26);
-
-                string binario = opcode + direccionBinario;
+                
+                string binario = opcode + etiqueta;
                 resultado.push_back(binario);
 
                 i += 2; // Avanzar al siguiente grupo de instrucciones
@@ -369,27 +374,34 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, unsigned
         string rs, rt, etiqueta;
         ss >> rs >> rt >> etiqueta;
 
-    
-        ans = esRegistroValido(rs) && esRegistroValido(rt) && (etiquetas.find(etiqueta) != etiquetas.end());
+        ans = esRegistroValido(rs) && esRegistroValido(rt);
 
         if (ans) {
+            bool esHex = esHexadecimal(etiqueta);
+            bool esEtiqueta = etiquetas.find(etiqueta) != etiquetas.end();
+
             string offsetBinario;
 
-            if(esHexadecimal(etiqueta)){
+            if (esHex) {
+                // Si es un valor hexadecimal, convertirlo directamente
                 offsetBinario = hexABinario(etiqueta);
-            }else{
-                int offset = calcularDesplazamiento(etiquetas[etiqueta], pc);
-                
-                offsetBinario = convertirABinario(offset, 16); 
+            } else if (esEtiqueta) {
+                // Si es una etiqueta, calcular el desplazamiento relativo
+                int offset = (etiquetas[etiqueta] - (pc + 4)) / 4; // (dirección_etiqueta - (pc + 4)) / 4
+                offsetBinario = convertirABinario(offset, 16);
+            } else {
+                cerr << "Error: Inmediato o etiqueta no válida en la instrucción: " << instruccion << endl;
+                return false;
             }
 
+            // Agregar la instrucción al vector
             ins.push_back(nombre);
             ins.push_back(rs);
             ins.push_back(rt);
             ins.push_back(offsetBinario);
             
         } else {
-            cerr << "Error: Registros o etiqueta no validos en la instruccion: " << instruccion << endl;
+            cerr << "Error: Registros no validos en la instruccion: " << instruccion << endl;
         }
     } else if (nombre == "addi" || nombre == "addiu" || nombre == "andi" || nombre == "slti" || nombre == "sltiu"){
         // Formato: rt rs inmediato
@@ -409,14 +421,13 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, unsigned
                     cerr << "Error: El valor inmediato debe estar entre -32768 y 32767 (16 bits).\n";
                     ans = false;
                 }else{
-                    string inmediatoBinario;
+
                     ins.push_back(nombre);
                     ins.push_back(rs);
                     ins.push_back(rt);
                     
-                    int inmediatoEntero = stoi(inmediato);
-                    inmediatoBinario = convertirABinario(inmediatoEntero, 16);
-                    ins.push_back(inmediato);
+                    string inmediatoBinario = convertirABinario(inmediatoEntero, 16);
+                    ins.push_back(inmediatoBinario);
 
                 }
             }else{
@@ -525,59 +536,62 @@ bool validarTipoI(string &instruccion, vector<string> &ins, map<string, unsigned
     return ans;
 }
 
-bool validarTipoJ(string &instruccion, vector<string> &ins, map<string, unsigned int> &etiquetas){
+bool validarTipoJ(string &instruccion, vector<string> &ins, map<string, unsigned int> &etiquetas) {
     bool ans = false;
     istringstream ss(instruccion);
     string nombre, etiqueta;
 
     ss >> nombre >> etiqueta;
 
-    if (etiqueta.empty()){
-        cerr << "Error: La instruccion tipo J: " << instruccion << " esta mal estructurada" << endl;
+    if (etiqueta.empty()) {
+        cerr << "Error: La instrucción tipo J: " << instruccion << " está mal estructurada" << endl;
         ans = false;
-    } else if (nombre == "j" || nombre == "jal"){
-        if (etiquetas.find(etiqueta) == etiquetas.end()){
+    } else if (nombre == "j" || nombre == "jal") {
+        if (etiquetas.find(etiqueta) == etiquetas.end() && !esHexadecimal(etiqueta)) {
             cerr << "Error: Etiqueta no encontrada: " << etiqueta << endl;
             ans = false;
-        }else{
+        } else {
             ans = true;
             ins.push_back(nombre);
-            if(esHexadecimal(etiqueta)){
-                string inmediatoBinario = hexABinario(etiqueta);
-                ins.push_back(inmediatoBinario);
-            }else{
-                ins.push_back(to_string(etiquetas[etiqueta]));
-            }
-            
 
-            
+            if (esHexadecimal(etiqueta)) {
+                // Si es un valor hexadecimal, convertirlo directamente
+                int direccionEntero = stoi(etiqueta, nullptr, 16) / 4; // Convertir a entero y dividir entre 4
+                string direccionBinario = convertirABinario(direccionEntero, 26);
+                ins.push_back(direccionBinario);
+            } else {
+                // Si es una etiqueta, usar la dirección almacenada
+                int direccionEntero = etiquetas[etiqueta] / 4; // Convertir a entero y dividir entre 4
+                string direccionBinario = convertirABinario(direccionEntero, 26);
+                ins.push_back(direccionBinario);
+            }
         }
     }
     return ans;
 }
 
-void leerEtiquetas(string nombre, map<string,unsigned int> &etiquetas, unsigned int &pc){
+void leerEtiquetas(string nombre, map<string, unsigned int> &etiquetas, unsigned int &pc) {
     ifstream archivo(nombre);
     string linea;
-    int contadorLinea = 1;
+    unsigned int direccionActual = pc; // Comenzar desde la dirección base
 
-    if (!archivo.is_open()){
+    if (!archivo.is_open()) {
         cerr << "Error! No se pudo abrir el archivo " << nombre << endl;
-    }else{
+    } else {
         while (getline(archivo, linea)) {
             string lineaLeida = limpiarLinea(linea);
             if (!lineaLeida.empty()) {
-                if (lineaLeida.back() == ':'){
+                if (lineaLeida.back() == ':') {
+                    // Es una etiqueta
                     string etiqueta = lineaLeida.substr(0, lineaLeida.length() - 1);
-                    
-                    etiquetas[etiqueta] = pc + contadorLinea * var;
-                }else{
-                    contadorLinea++;
+                    etiquetas[etiqueta] = direccionActual; // Almacenar la dirección actual
+                } else {
+                    // Es una instrucción, incrementar la dirección
+                    direccionActual += var;
                 }
             }
         }
     }
-
     archivo.close();
 }
 
@@ -699,8 +713,8 @@ int main(){
     vector<string> instrucciones;
     leerTxt(nombre, instrucciones,pc, etiquetas);
 
-
-    vector<string> traduccion = traducir(instrucciones);
+    //imprimirMapaEtiquetas(etiquetas);
+    vector<string> traduccion = traducir(instrucciones, etiquetas, pc);
 
     // Guardar la traducción en un archivo de texto
     string nombreArchivoSalida = "traduccionMIPS.txt";

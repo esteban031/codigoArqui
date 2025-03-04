@@ -1,9 +1,9 @@
 add $t0, $t1, $t2
-addi $t3, $zero, 1
+addi $t3, $zero, 7
 jr $ra
 beq $t0, $t1, label
 lw $t0, 5($s1)
 sll $s0, $s1, 4
 j label
 label:
-addi $t0, $t1, 5
+addi $t0, $t1, -5
